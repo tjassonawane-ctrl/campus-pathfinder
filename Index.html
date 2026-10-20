@@ -1,0 +1,1083 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>St. Xavier's Campus Tour & Pathfinding</title>
+  
+  <style>
+    /* Color Palette: Red (#8b0000), Dark Black (#111111), Light Neutral (#f8f9fa) */
+    :root {
+      --primary-red: #8b0000;
+      --dark-red: #660000;
+      --text-black: #111111;
+      --bg-light: #f8f9fa;
+      --border-color: #e0e0e0;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f4f4f4;
+      color: var(--text-black);
+    }
+
+    /* Main Container Frame */
+    .app-container {
+      border: 0.5px solid var(--border-color);
+      border-radius: 12px;
+      overflow: hidden;
+      height: 100vh;
+      max-height: 900px;
+      margin: 0 auto;
+      background: #ffffff;
+    }
+
+    .app {
+      display: flex;
+      height: 100%;
+    }
+
+    /* Sidebar Navigation */
+    .sidebar {
+      width: 190px;
+      background: #2b2b2b;
+      padding: 20px 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+      flex-shrink: 0;
+    }
+
+    .sidebar-btn {
+      padding: 10px;
+      border: none;
+      border-radius: 6px;
+      background: #f0f0f0;
+      color: #333;
+      cursor: pointer;
+      font-size: 14px;
+      text-align: left;
+      font-weight: 500;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .sidebar-btn:hover {
+      background: #e0e0e0;
+    }
+
+    .sidebar-btn.active {
+      background: var(--primary-red) !important;
+      color: #fff !important;
+      font-weight: 600;
+    }
+
+    /* Content Area */
+    #contentArea {
+      flex: 1;
+      padding: 0 !important;
+      overflow-y: auto;
+      background: var(--bg-light) !important;
+      color: var(--text-black) !important;
+    }
+
+    .page-container {
+      padding: 24px;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .inner-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: #ffffff;
+      padding: 12px 24px;
+      border-bottom: 3px solid var(--primary-red);
+      box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+    }
+
+    .inner-header .logo-group {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .inner-header img {
+      height: 40px;
+      width: auto;
+    }
+
+    .inner-header h2 {
+      font-family: 'Georgia', serif;
+      font-size: 18px;
+      color: var(--primary-red);
+      margin: 0;
+    }
+
+    /* Navigation & Cards */
+    #contentArea .nav-wrap { max-width: 800px; margin: 0 auto; }
+    #contentArea h1.page-title { font-family: 'Georgia', serif; font-size: 24px; margin: 0 0 6px; color: var(--primary-red); }
+    #contentArea .nav-subtitle { font-size: 13px; color: #555; margin: 0 0 20px; }
+    #contentArea .nav-card { background: #ffffff; border-radius: 8px; padding: 20px; box-shadow: 0 3px 12px rgba(0,0,0,0.08); margin-bottom: 16px; border-top: 3px solid var(--primary-red); }
+    #contentArea .nav-card label { display: block; font-size: 12px; font-weight: 700; color: var(--text-black); margin-bottom: 5px; margin-top: 12px; text-transform: uppercase; }
+    #contentArea .nav-card label:first-child { margin-top: 0; }
+    #contentArea .nav-card select { width: 100%; padding: 10px; border-radius: 6px; border: 1px solid var(--border-color); background: #fff; font-size: 14px; color: var(--text-black); }
+    #contentArea button.primary { width: 100%; margin-top: 16px; padding: 12px; border: none; border-radius: 6px; background: var(--primary-red); color: #fff; font-size: 15px; font-weight: 600; cursor: pointer; transition: background 0.2s; }
+    #contentArea button.primary:hover { background: var(--dark-red); }
+
+    /* Custom Searchable Dropdown - Exactly Matches Original Select */
+    .search-select-box {
+      position: relative;
+      width: 100%;
+    }
+    .search-select-box input {
+      width: 100%;
+      padding: 10px 36px 10px 10px;
+      border-radius: 6px;
+      border: 1px solid var(--border-color);
+      background-color: #fff;
+      font-size: 14px;
+      font-family: inherit;
+      color: var(--text-black);
+      outline: none;
+      cursor: pointer;
+      background-image: url('data:image/svg+xml;utf8,<svg fill="%23333333" height="24" viewBox="0 0 24 24" width="24" xmlns="http://www.w3.org/2000/svg"><path d="M7 10l5 5 5-5z"/></svg>');
+      background-repeat: no-repeat;
+      background-position: right 10px center;
+    }
+    .search-select-box input:focus {
+      border-color: var(--primary-red);
+      cursor: text;
+    }
+    .search-select-dropdown {
+      display: none;
+      position: absolute;
+      top: calc(100% + 4px);
+      left: 0;
+      right: 0;
+      max-height: 240px;
+      overflow-y: auto;
+      background: #ffffff;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      box-shadow: 0 4px 14px rgba(0,0,0,0.12);
+      z-index: 100;
+    }
+    .search-select-item {
+      padding: 9px 12px;
+      font-size: 13.5px;
+      color: #222;
+      cursor: pointer;
+      border-bottom: 1px solid #f2f2f2;
+    }
+    .search-select-item:last-child {
+      border-bottom: none;
+    }
+    .search-select-item:hover, .search-select-item.selected {
+      background-color: #fdf2f2;
+      color: var(--primary-red);
+      font-weight: 600;
+    }
+
+    /* Route Output Steps */
+    #contentArea .step { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid #eee; align-items: flex-start; }
+    #contentArea .step-num { width: 24px; height: 24px; border-radius: 50%; background: #eee; color: var(--text-black); font-size: 11px; font-weight: 700; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+    #contentArea .step-num.stair { background: var(--primary-red); color: #fff; }
+
+    /* Faculty & Gallery */
+    .faculty-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 12px; margin-top: 16px; }
+    .faculty-card { background: #fff; border: 1px solid var(--border-color); border-left: 4px solid var(--primary-red); border-radius: 6px; padding: 12px 16px; font-size: 14px; font-weight: 600; color: var(--text-black); box-shadow: 0 2px 6px rgba(0,0,0,0.04); }
+
+    .gallery-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; margin-top: 16px; }
+    .gallery-img { width: 100%; height: 160px; object-fit: cover; border-radius: 6px; cursor: pointer; border: 2px solid #fff; box-shadow: 0 3px 8px rgba(0,0,0,0.15); transition: transform 0.2s; }
+    .gallery-img:hover { transform: scale(1.03); }
+    #lightboxOverlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.85); z-index: 9999; justify-content: center; align-items: center; flex-direction: column; }
+    #lightboxOverlay img { max-width: 85%; max-height: 80%; border-radius: 8px; border: 3px solid #fff; }
+    #lightboxClose { color: #fff; margin-top: 12px; cursor: pointer; font-size: 16px; background: var(--primary-red); padding: 6px 16px; border-radius: 4px; border: none; }
+  </style>
+</head>
+<body>
+
+  <div class="app-container">
+    <div class="app">
+      <!-- Sidebar Options -->
+      <div class="sidebar">
+        <button id="btnHome" class="sidebar-btn active" onclick="showHome()">Home</button>
+        <button id="btnLostButton" class="sidebar-btn" onclick="showLostButton()">Lost? Find Route</button>
+        <button id="btnDepartments" class="sidebar-btn" onclick="showDepartments()">Departments</button>
+        <button id="btnGallery" class="sidebar-btn" onclick="showGallery()">Gallery</button>
+        <button id="btnAbout" class="sidebar-btn" onclick="showAbout()">About</button>
+        <button id="btnContact" class="sidebar-btn" onclick="showContact()">Contact</button>
+      </div>
+
+      <!-- Dynamic Screen Content -->
+      <div id="contentArea"></div>
+    </div>
+  </div>
+
+  <div id="lightboxOverlay" onclick="closeLightbox()">
+    <img id="lightboxImg" src="" alt="Expanded Image">
+    <button id="lightboxClose" onclick="closeLightbox()">Close Preview</button>
+  </div>
+
+  <script>
+    const NODES = [
+      {id:"entrance", name:"Entrance", building:"College Building", floor:0, category:"LANDMARK"},
+      {id:"reception_area", name:"Reception Area", building:"College Building", floor:0, category:"LANDMARK"},
+      {id:"lr01", name:"LR 01", building:"College Building", floor:0, category:"ROOM"},
+      {id:"img_room", name:"IMG", building:"College Building", floor:0, category:"ROOM"},
+      {id:"socio_anthro_dept", name:"Socio and Anthro Dept", building:"College Building", floor:0, category:"DEPT"},
+      {id:"quad", name:"Quad", building:"College Building", floor:0, category:"LANDMARK"},
+      {id:"it_dept", name:"IT Dept", building:"College Building", floor:0, category:"DEPT"},
+      {id:"ssl", name:"SSL", building:"College Building", floor:0, category:"DEPT"},
+      {id:"stair_ssl_0", name:"SSL Staircase", building:"College Building", floor:0, category:"STAIRCASE"},
+      {id:"sy_ty_physics_lab", name:"SY & TYBSc Physics Lab", building:"College Building", floor:0, category:"ROOM"},
+      {id:"physics_dept_0", name:"Physics Dept", building:"College Building", floor:0, category:"DEPT"},
+      {id:"fyjc_physics_lab", name:"FYJC/SYJC/FYBSc Physics Lab", building:"College Building", floor:0, category:"ROOM"},
+      {id:"lr02_03", name:"LR 02, 03", building:"College Building", floor:0, category:"ROOM"},
+      {id:"chemistry_lab_0", name:"Chemistry Lab", building:"College Building", floor:0, category:"ROOM"},
+      {id:"xrcvc_main", name:"XRCVC (Main)", building:"College Building", floor:0, category:"DEPT"},
+      {id:"stair_xrcvc_0", name:"XRCVC Staircase", building:"College Building", floor:0, category:"STAIRCASE"},
+      {id:"xic", name:"XIC", building:"College Building", floor:0, category:"DEPT"},
+      {id:"language_lab", name:"Language Lab", building:"College Building", floor:0, category:"ROOM"},
+      {id:"stair_hostel_0", name:"Hostel Building Staircase", building:"Hostel Building", floor:0, category:"STAIRCASE"},
+      {id:"stair_foyer_0", name:"Foyer Staircase", building:"College Building", floor:0, category:"STAIRCASE"},
+      {id:"college_hall", name:"College Hall", building:"College Building", floor:0, category:"LANDMARK"},
+      {id:"mini_woods", name:"Mini Woods", building:"College Building", floor:0, category:"LANDMARK"},
+      {id:"volleyball_court", name:"Volleyball Court", building:"College Building", floor:0, category:"LANDMARK"},
+      {id:"washroom_ground", name:"Washroom", building:"College Building", floor:0, category:"WASHROOM"},
+      {id:"foyer", name:"Foyer", building:"College Building", floor:0, category:"LANDMARK"},
+      {id:"canteen", name:"Canteen", building:"College Building", floor:0, category:"POI_FOOD"},
+      {id:"green_shade", name:"Green Shade", building:"College Building", floor:0, category:"LANDMARK"},
+      {id:"woods", name:"Woods", building:"College Building", floor:0, category:"LANDMARK"},
+      {id:"stair_middle_0", name:"Middle Staircase", building:"College Building", floor:0, category:"STAIRCASE"},
+      {id:"stair_ssl_1", name:"SSL Staircase", building:"College Building", floor:1, category:"STAIRCASE"},
+      {id:"economics_dept", name:"Economics Dept", building:"College Building", floor:1, category:"DEPT"},
+      {id:"treasurer_office", name:"Treasurer's Office", building:"College Building", floor:1, category:"OFFICE"},
+      {id:"general_office", name:"General Office", building:"College Building", floor:1, category:"OFFICE"},
+      {id:"bonnet_lab", name:"Bonnet Lab", building:"College Building", floor:1, category:"ROOM"},
+      {id:"lending_lab", name:"Lending Lab", building:"College Building", floor:1, category:"ROOM"},
+      {id:"commerce_vp", name:"Commerce VP", building:"College Building", floor:1, category:"OFFICE"},
+      {id:"stair_foyer_1", name:"Foyer Staircase", building:"College Building", floor:1, category:"STAIRCASE"},
+      {id:"mmr", name:"MMR (Multi Media Room)", building:"College Building", floor:1, category:"ROOM"},
+      {id:"physics_dept_1", name:"Physics Dept (1st Floor)", building:"College Building", floor:1, category:"DEPT"},
+      {id:"stair_middle_1", name:"Middle Staircase", building:"College Building", floor:1, category:"STAIRCASE"},
+      {id:"lr14", name:"LR 14", building:"College Building", floor:1, category:"ROOM"},
+      {id:"lr13", name:"LR 13", building:"College Building", floor:1, category:"ROOM"},
+      {id:"stair_hogwarts_1", name:"Hogwarts Staircase", building:"College Building", floor:1, category:"STAIRCASE"},
+      {id:"xaviers_photocopy", name:"Xavier's Photocopy Services", building:"College Building", floor:1, category:"POI_SHOP"},
+      {id:"ximr", name:"XIMR", building:"College Building", floor:1, category:"DEPT"},
+      {id:"sip_dept", name:"SIP Dept", building:"College Building", floor:1, category:"DEPT"},
+      {id:"staff_room", name:"Staff Room", building:"College Building", floor:1, category:"OFFICE"},
+      {id:"lr12", name:"LR 12", building:"College Building", floor:1, category:"ROOM"},
+      {id:"lr11", name:"LR 11", building:"College Building", floor:1, category:"ROOM"},
+      {id:"chemistry_lab_1", name:"Chemistry Lab (1st Floor)", building:"College Building", floor:1, category:"ROOM"},
+      {id:"dept_of_chemistry", name:"Department of Chemistry", building:"College Building", floor:1, category:"DEPT"},
+      {id:"stair_xrcvc_1", name:"XRCVC Staircase", building:"College Building", floor:1, category:"STAIRCASE"},
+      {id:"geology_dept", name:"Geology Dept", building:"College Building", floor:1, category:"DEPT"},
+      {id:"geography_dept", name:"Geography Dept", building:"College Building", floor:1, category:"DEPT"},
+      {id:"microbiology_dept", name:"Microbiology Dept", building:"College Building", floor:1, category:"DEPT"},
+      {id:"stair_hogwarts_2", name:"Hogwarts Staircase", building:"College Building", floor:2, category:"STAIRCASE"},
+      {id:"reference_library", name:"Reference Library", building:"College Building", floor:2, category:"LANDMARK"},
+      {id:"lr31", name:"LR 31", building:"College Building", floor:2, category:"ROOM"},
+      {id:"lr32", name:"LR 32", building:"College Building", floor:2, category:"ROOM"},
+      {id:"lr33", name:"LR 33", building:"College Building", floor:2, category:"ROOM"},
+      {id:"commerce_dept", name:"Commerce Department", building:"College Building", floor:2, category:"DEPT"},
+      {id:"lr35_38", name:"LR 35-38", building:"College Building", floor:2, category:"ROOM"},
+      {id:"maths_dept", name:"Maths Department", building:"College Building", floor:2, category:"DEPT"},
+      {id:"stair_foyer_2", name:"Foyer Staircase", building:"College Building", floor:2, category:"STAIRCASE"},
+      {id:"scavi", name:"SCAVI", building:"College Building", floor:2, category:"LANDMARK"},
+      {id:"stair_middle_2", name:"Middle Staircase", building:"College Building", floor:2, category:"STAIRCASE"},
+      {id:"lr25_27", name:"LR 25-27", building:"College Building", floor:2, category:"ROOM"},
+      {id:"lr22_24", name:"LR 22-24", building:"College Building", floor:2, category:"ROOM"},
+      {id:"ximr_2", name:"XIMR (2nd Floor)", building:"College Building", floor:2, category:"DEPT"},
+      {id:"stair_ssl_2", name:"SSL Staircase", building:"College Building", floor:2, category:"STAIRCASE"},
+      {id:"statistics_dept", name:"Statistics Dept", building:"College Building", floor:2, category:"DEPT"},
+      {id:"lr20g", name:"LR 20G", building:"College Building", floor:2, category:"ROOM"},
+      {id:"english_dept", name:"English Dept", building:"College Building", floor:2, category:"DEPT"},
+      {id:"lr20a_f", name:"LR 20A-20F", building:"College Building", floor:2, category:"ROOM"},
+      {id:"stair_foyer_3", name:"Foyer Staircase", building:"College Building", floor:3, category:"STAIRCASE"},
+      {id:"zoology_dept", name:"Zoology Dept", building:"College Building", floor:3, category:"DEPT"},
+      {id:"life_science_dept", name:"Life Science Dept", building:"College Building", floor:3, category:"DEPT"},
+      {id:"botany_dept", name:"Botany Dept", building:"College Building", floor:3, category:"DEPT"},
+      {id:"msc_botany_lab", name:"MSc Botany Lab", building:"College Building", floor:3, category:"ROOM"},
+      {id:"stair_hogwarts_3", name:"Hogwarts Staircase", building:"College Building", floor:3, category:"STAIRCASE"},
+      {id:"lr40s", name:"LR 40s", building:"College Building", floor:3, category:"ROOM"},
+      {id:"mvm_office", name:"MVM Office", building:"College Building", floor:3, category:"OFFICE"},
+      {id:"hindi_dept", name:"Hindi Dept", building:"College Building", floor:3, category:"DEPT"},
+      {id:"terrace", name:"Terrace", building:"College Building", floor:3, category:"LANDMARK"},
+      {id:"stair_xrcvc_3", name:"XRCVC Staircase", building:"College Building", floor:3, category:"STAIRCASE"},
+      {id:"hostel_building", name:"Hostel Building Entrance", building:"Hostel Building", floor:0, category:"LANDMARK"},
+      {id:"stair_hostel_1", name:"Hostel Building Staircase", building:"Hostel Building", floor:1, category:"STAIRCASE"},
+      {id:"kc_lab_123", name:"KC Lab 1, 2, 3", building:"Hostel Building", floor:1, category:"ROOM"},
+      {id:"pol_science_dept", name:"Pol Science Dept", building:"Hostel Building", floor:1, category:"DEPT"},
+      {id:"stair_hostel_2", name:"Hostel Building Staircase", building:"Hostel Building", floor:2, category:"STAIRCASE"},
+      {id:"lr_50s", name:"LR 50s", building:"Hostel Building", floor:2, category:"ROOM"},
+      {id:"bms_dept", name:"BMS Dept", building:"Hostel Building", floor:2, category:"DEPT"},
+      {id:"maths_lab", name:"Maths Lab", building:"Hostel Building", floor:2, category:"ROOM"},
+      {id:"stair_hostel_3", name:"Hostel Building Staircase", building:"Hostel Building", floor:3, category:"STAIRCASE"},
+      {id:"lr_60s", name:"LR 60s", building:"Hostel Building", floor:3, category:"ROOM"},
+      {id:"bmm_dept", name:"BMM Dept", building:"Hostel Building", floor:3, category:"DEPT"},
+      {id:"stats_dept", name:"Stats Dept", building:"Hostel Building", floor:3, category:"DEPT"}
+    ];
+
+    /* Staircase Photos Mapping */
+    const STAIRCASE_IMAGES = {
+      "ssl": "https://i.ibb.co/BHHgzJ3Z/ssl-stair.jpg",
+      "foyer": "https://i.ibb.co/YTTgPbDr/foyer.jpg",
+      "middle": "https://i.ibb.co/zHZbfPn2/middle.jpg",
+      "img": "https://i.ibb.co/3m9Znk0R/hogwarts.jpg"
+    };
+
+    /* Destination Landmark/Room Photos */
+    const DESTINATION_IMAGES = {
+      "bonnet_lab": "https://i.ibb.co/Z1SbTPnh/bonet.jpg",
+      "scavi": "https://i.ibb.co/GQvXtymN/scavi.jpg",
+      "mmr": "https://i.ibb.co/sdgpCKDt/mmr.jpg"
+    };
+
+    function getStaircaseImage(name) {
+      const lower = name.toLowerCase();
+      if (lower.includes("ssl")) return STAIRCASE_IMAGES["ssl"];
+      if (lower.includes("foyer")) return STAIRCASE_IMAGES["foyer"];
+      if (lower.includes("middle")) return STAIRCASE_IMAGES["middle"];
+      if (lower.includes("img") || lower.includes("hogwarts")) return STAIRCASE_IMAGES["img"];
+      return null;
+    }
+
+    const EDGES = [
+      ["entrance","reception_area",10,false,true,"Straight ahead from the entrance"],
+      ["entrance","lr01",8,false,true,"Turn left at the entrance"],
+      ["entrance","img_room",8,false,true,"Turn left, beside LR 01"],
+      ["entrance","socio_anthro_dept",8,false,true,"Turn left, beside LR 01"],
+      ["reception_area","quad",15,false,true,"Straight past reception"],
+      ["quad","it_dept",15,false,true,"Opposite the quad, on the ground floor"],
+      ["it_dept","sy_ty_physics_lab",8,false,true,"Right next to IT dept"],
+      ["it_dept","ssl",8,false,true,"Right next to IT dept"],
+      ["it_dept","stair_ssl_0",6,false,true,"Right next to IT dept"],
+      ["sy_ty_physics_lab","physics_dept_0",10,false,true,"Straight ahead, on your left"],
+      ["sy_ty_physics_lab","stair_foyer_0",10,false,true,"Just past the physics dept"],
+      ["physics_dept_0","fyjc_physics_lab",10,false,true,"Just past the physics dept"],
+      ["fyjc_physics_lab","lr02_03",8,false,true,"Beside the FYJC/SYJC/FYBSc physics lab"],
+      ["lr02_03","chemistry_lab_0",8,false,true,"Right next to LR 02, 03"],
+      ["chemistry_lab_0","xrcvc_main",10,false,true,"Right next to the chemistry lab"],
+      ["xrcvc_main","stair_xrcvc_0",6,false,true,"Right next to XRCVC"],
+      ["xrcvc_main","xic",8,false,true,"Right next to XIC"],
+      ["xic","language_lab",8,false,true,"Right next to XIC"],
+      ["language_lab","stair_hostel_0",6,false,true,"Beside the language lab"],
+      ["quad","college_hall",10,false,true,"Beside the quad"],
+      ["college_hall","mini_woods",10,false,true,"Beside the college hall"],
+      ["mini_woods","volleyball_court",8,false,true,"Beside the college hall and mini woods"],
+      ["volleyball_court","washroom_ground",8,false,true,"Next to college hall, across from the volleyball court"],
+      ["mini_woods","foyer",10,false,true,"Beside the mini woods"],
+      ["foyer","canteen",8,false,true,"Behind the Foyer, same block"],
+      ["canteen","woods",6,false,true,"It's right beside where you're standing"],
+      ["canteen","it_dept",12,false,true,"Go straight and turn left, you'll see it"],
+      ["canteen","xrcvc_main",12,false,true,"It's opposite your side"],
+      ["canteen","physics_dept_0",10,false,true,"Go straight, you'll see it beside the Middle Staircase"],
+      ["canteen","sy_ty_physics_lab",12,false,true,"Go straight and turn left, you'll see it"],
+      ["canteen","green_shade",8,false,true,"Beside the foyer and canteen"],
+      ["green_shade","woods",8,false,true,"Beside the woods"],
+      ["physics_dept_0","stair_middle_0",10,false,true,"Just beside the physics dept"],
+      ["woods","stair_middle_0",10,false,true,"Beside the woods"],
+      ["woods","hostel_building",8,false,true,"It is just in front of the woods, beside the language lab"],
+      ["hostel_building","stair_hostel_0",6,false,true,"Right there at the entrance"],
+      ["stair_hostel_1","kc_lab_123",10,false,true,"Right off the staircase"],
+      ["stair_hostel_1","pol_science_dept",10,false,true,"Right off the staircase"],
+      ["stair_hostel_2","lr_50s",10,false,true,"Right off the staircase"],
+      ["stair_hostel_2","bms_dept",10,false,true,"Right off the staircase"],
+      ["stair_hostel_2","maths_lab",12,false,true,"Right off the staircase, past LR 50s"],
+      ["stair_hostel_3","lr_60s",10,false,true,"Right off the staircase"],
+      ["stair_hostel_3","bmm_dept",10,false,true,"Right off the staircase"],
+      ["stair_hostel_3","stats_dept",12,false,true,"Right off the staircase, past LR 60s"],
+      ["stair_ssl_1","economics_dept",10,false,true,"Turn left from the staircase landing"],
+      ["stair_ssl_1","treasurer_office",8,false,true,"Turn right and walk a few steps"],
+      ["stair_ssl_1","general_office",12,false,true,"Turn right and continue straight to the end, then turn left"],
+      ["treasurer_office","general_office",6,false,true,"General Office is directly opposite the Treasurer's Office"],
+      ["stair_ssl_1","bonnet_lab",10,false,true,"Turn left and walk ahead towards Bonnet Lab"],
+      ["stair_ssl_1","lending_lab",12,false,true,"Turn left and walk ahead towards the Lending Lab"],
+      ["stair_ssl_1","commerce_vp",10,false,true,"Turn left, Commerce VP is on this side"],
+      ["economics_dept","bonnet_lab",6,false,true,"Walk towards Bonnet Lab, it is nearby"],
+      ["bonnet_lab","lending_lab",6,false,true,"Walk to the adjacent Lending Lab"],
+      ["economics_dept","lending_lab",8,false,true,"Walk ahead towards the Lending Lab"],
+      ["stair_foyer_1","mmr",6,false,true,"Turn right, MMR is immediately nearby"],
+      ["stair_foyer_1","physics_dept_1",10,false,true,"Turn right and continue straight"],
+      ["stair_middle_1","lr14",8,false,true,"Turn left from the staircase landing"],
+      ["stair_middle_1","lr13",10,false,true,"Turn left and continue a few steps"],
+      ["stair_middle_1","lending_lab",8,false,true,"Turn right, the Lending Lab is beside LR 14"],
+      ["stair_middle_1","bonnet_lab",10,false,true,"Turn left, Bonnet Lab is next to the Lending Lab"],
+      ["stair_middle_1","physics_dept_1",10,false,true,"Turn left, Physics Department is nearby"],
+      ["stair_middle_1","mmr",10,false,true,"Turn left and walk ahead towards MMR"],
+      ["mmr","physics_dept_1",6,false,true,"Walk ahead, Physics Department is nearby"],
+      ["mmr","lr13",8,false,true,"Walk ahead towards LR 13"],
+      ["lr13","lr14",6,false,true,"Walk ahead, LR 14 is nearby"],
+      ["lr14","lending_lab",6,false,true,"Walk ahead towards the Lending Lab"],
+      ["mmr","lending_lab",10,false,true,"Walk ahead past the Physics Department, the Lending Lab is nearby"],
+      ["mmr","bonnet_lab",10,false,true,"Walk ahead past the Physics Department, Bonnet Lab is next to the Lending Lab"],
+      ["lending_lab","stair_hogwarts_1",8,false,true,"Use the Hogwarts staircase, right opposite the Lending Lab"],
+      ["stair_hogwarts_1","xaviers_photocopy",6,false,true,"Xavier's Photocopy Services is at the bottom of the Hogwarts staircase"],
+      ["ximr","sip_dept",8,true,false,"Take the small staircase beside XIMR"],
+      ["ximr","staff_room",8,true,false,"Take the small staircase beside XIMR"],
+      ["sip_dept","staff_room",6,false,true,"Walk straight"],
+      ["mmr","lr12",10,false,true,"Move left, towards the Foyer Staircase"],
+      ["lr12","lr11",8,false,true,"Continue left"],
+      ["lr12","chemistry_lab_1",10,false,true,"Continue straight ahead"],
+      ["chemistry_lab_1","dept_of_chemistry",10,false,true,"Continue towards the left end of the corridor"],
+      ["dept_of_chemistry","stair_xrcvc_1",8,false,true,"Take the staircase right beside the Department of Chemistry"],
+      ["stair_xrcvc_1","geography_dept",8,false,true,"Right next to the Department of Chemistry"],
+      ["stair_xrcvc_1","microbiology_dept",8,false,true,"Right next to the Department of Chemistry"],
+      ["stair_xrcvc_1","geology_dept",10,false,true,"Take the XRCVC staircase up to the first floor"],
+      ["lr11","ximr",8,false,true,"Continue ahead, past LR 11"],
+      ["stair_hogwarts_2","reference_library",8,false,true,"The Reference Library is right off the Hogwarts staircase"],
+      ["reference_library","lr31",10,false,true,"Straight down the corridor ahead"],
+      ["lr31","lr32",6,false,true,"Beside LR 31"],
+      ["lr32","lr33",6,false,true,"Beside LR 32"],
+      ["lr33","commerce_dept",8,false,true,"Beside LR 33"],
+      ["commerce_dept","lr35_38",10,false,true,"Beside the Commerce Department"],
+      ["lr35_38","maths_dept",10,false,true,"Continue to the very end, Maths Department is on the left"],
+      ["stair_foyer_2","scavi",8,false,true,"On your left"],
+      ["stair_foyer_2","ximr_2",8,false,true,"Straight ahead"],
+      ["stair_middle_2","lr25_27",10,false,true,"To your left"],
+      ["stair_middle_2","lr22_24",10,false,true,"To your right"],
+      ["stair_ssl_2","statistics_dept",8,false,true,"On your left"],
+      ["stair_ssl_2","lr20g",8,false,true,"On your right"],
+      ["stair_ssl_2","english_dept",10,false,true,"On the right side, beside LR 20G"],
+      ["stair_ssl_2","lr20a_f",12,false,true,"Turn right, go straight, then take a left"],
+      ["stair_foyer_3","zoology_dept",8,false,true,"Turn left from the Foyer Staircase"],
+      ["zoology_dept","life_science_dept",8,false,true,"Just past the Zoology Department"],
+      ["life_science_dept","botany_dept",8,false,true,"Just past the Life Science Department"],
+      ["stair_foyer_3","msc_botany_lab",8,false,true,"Turn right from the Foyer Staircase"],
+      ["msc_botany_lab","stair_hogwarts_3",8,false,true,"At the end of the corridor, take the Hogwarts staircase going up"],
+      ["stair_hogwarts_3","lr40s",8,false,true,"Right off the Hogwarts staircase"],
+      ["lr40s","mvm_office",6,false,true,"Beside LR 40s, on the terrace"],
+      ["mvm_office","hindi_dept",6,false,true,"Opposite the MVM office"],
+      ["stair_hogwarts_3","terrace",8,false,true,"Straight ahead"],
+      ["botany_dept","stair_xrcvc_3",10,true,false,"Take the stairs (XRCVC Stairs) going down, near the Life Science lab"],
+      ["stair_ssl_0","stair_ssl_1",15,true,false,null],
+      ["stair_ssl_1","stair_ssl_2",15,true,false,null],
+      ["stair_foyer_0","stair_foyer_1",15,true,false,null],
+      ["stair_foyer_1","stair_foyer_2",15,true,false,null],
+      ["stair_foyer_2","stair_foyer_3",15,true,false,null],
+      ["stair_middle_0","stair_middle_1",15,true,false,null],
+      ["stair_middle_1","stair_middle_2",15,true,false,null],
+      ["stair_xrcvc_0","stair_xrcvc_1",15,true,false,null],
+      ["stair_xrcvc_1","stair_xrcvc_3",30,true,false,null],
+      ["stair_hogwarts_1","stair_hogwarts_2",15,true,false,null],
+      ["stair_hogwarts_2","stair_hogwarts_3",15,true,false,null],
+      ["stair_hostel_0","stair_hostel_1",15,true,false,null],
+      ["stair_hostel_1","stair_hostel_2",15,true,false,null],
+      ["stair_hostel_2","stair_hostel_3",15,true,false,null],
+    ];
+
+    const nodeMap = {};
+    NODES.forEach(n => nodeMap[n.id] = n);
+    const adjacency = {};
+    NODES.forEach(n => adjacency[n.id] = []);
+    EDGES.forEach(([from, to, weight, isStaircase]) => {
+      adjacency[from].push({to, weight, isStaircase});
+      adjacency[to].push({to: from, weight, isStaircase});
+    });
+
+    const directionMap = {};
+    EDGES.forEach(([from, to, , , , dir]) => { if (dir) directionMap[from + "|" + to] = dir; });
+
+    function invertDirection(text) {
+      return text.replace(/\b(left|right)\b(?!\s+(next to|off|there|beside|away|here))/gi, (m) => {
+        const swapped = m.toLowerCase() === "left" ? "right" : "left";
+        if (m === m.toUpperCase()) return swapped.toUpperCase();
+        if (m[0] === m[0].toUpperCase()) return swapped[0].toUpperCase() + swapped.slice(1);
+        return swapped;
+      });
+    }
+
+    function escapeRegex(s) { return s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"); }
+
+    function getDirection(fromId, toId) {
+      if (nodeMap[toId].category === "STAIRCASE" || nodeMap[toId].name.toLowerCase().includes("staircase")) {
+        return "Walk to the " + nodeMap[toId].name;
+      }
+
+      if (directionMap[fromId + "|" + toId]) return directionMap[fromId + "|" + toId];
+      const reverseText = directionMap[toId + "|" + fromId];
+      if (!reverseText) return null;
+      
+      let text = invertDirection(reverseText);
+      const destName = nodeMap[toId].name;
+      const originName = nodeMap[fromId].name;
+      
+      if (destName.toLowerCase() !== originName.toLowerCase()) {
+        const re = new RegExp("(the\\s+)?" + escapeRegex(destName), "gi");
+        text = text.replace(re, (m, thePrefix) => (thePrefix ? thePrefix : "") + originName);
+      }
+      
+      return text;
+    }
+
+    function isStaircaseEdge(fromId, toId) {
+      const entry = adjacency[fromId].find(e => e.to === toId);
+      return entry ? entry.isStaircase : false;
+    }
+
+    function dijkstra(startId, endId) {
+      const dist = {}, prev = {};
+      NODES.forEach(n => dist[n.id] = Infinity);
+      dist[startId] = 0;
+      const queue = new Set(NODES.map(n => n.id));
+
+      while (queue.size > 0) {
+        let current = null, best = Infinity;
+        for (const id of queue) { if (dist[id] < best) { best = dist[id]; current = id; } }
+        if (current === null) break;
+        queue.delete(current);
+        if (current === endId) break;
+
+        for (const edge of adjacency[current]) {
+          const alt = dist[current] + edge.weight;
+          if (alt < dist[edge.to]) { dist[edge.to] = alt; prev[edge.to] = current; queue.add(edge.to); }
+        }
+      }
+
+      if (dist[endId] === Infinity) return null;
+      const path = [];
+      let step = endId;
+      while (step !== undefined) { path.unshift(nodeMap[step]); step = prev[step]; }
+      return { path, distance: dist[endId] };
+    }
+
+    function floorLabel(floorNum) {
+      if (floorNum === 0) return "Ground Floor";
+      if (floorNum === 1) return "1st Floor";
+      if (floorNum === 2) return "2nd Floor";
+      if (floorNum === 3) return "3rd Floor";
+      return `Floor ${floorNum}`;
+    }
+
+    function buildSteps(path) {
+      if (path.length < 2) return [{ type: "direction", text: "You are already here!" }];
+      const legs = [];
+      let i = 0;
+      while (i < path.length - 1) {
+        const stair = isStaircaseEdge(path[i].id, path[i + 1].id);
+        let j = i;
+        while (j + 1 < path.length - 1 && isStaircaseEdge(path[j + 1].id, path[j + 2].id) === stair) j++;
+        legs.push({ type: stair ? "stair" : "walk", start: i, end: j + 1 });
+        i = j + 1;
+      }
+
+      const steps = [];
+      legs.forEach(leg => {
+        if (leg.type === "stair") {
+          const segStart = path[leg.start], segEnd = path[leg.end];
+          const imgUrl = getStaircaseImage(segStart.name);
+          steps.push({ 
+            type: "staircase", 
+            text: "Take the " + segStart.name + " to " + floorLabel(segEnd.floor), 
+            staircaseName: segStart.name,
+            mergeable: true,
+            imageUrl: imgUrl
+          });
+        } else {
+          const from = path[leg.end - 1], to = path[leg.end];
+          let dirText = getDirection(from.id, to.id) || ("walk ahead to reach " + to.name);
+
+          if (dirText.toLowerCase().includes("right off the staircase")) {
+            dirText = "Walk to the nearby staircase";
+          }
+
+          dirText = dirText.charAt(0).toUpperCase() + dirText.slice(1).replace(/\.$/, "") + ".";
+          const last = steps[steps.length - 1];
+          if (last && last.mergeable) {
+            last.text += " — " + dirText.charAt(0).toLowerCase() + dirText.slice(1);
+            last.mergeable = false;
+          } else {
+            steps.push({ type: "direction", text: dirText });
+          }
+        }
+      });
+      return steps;
+    }
+
+    const FACULTY_DATA = {
+      ARTS: {
+        "Economics": ["Manali C. Pawar", "Aparna Kulkarni", "Fr. Vivian Almeida, S.J.", "Ganeshkumar Munnorcode", "Nandish Mulik", "Vrushali G. Raka", "Vrishali Kanhere", "Mahek"],
+        "Political Science": ["Pratiba Naitthani", "Sukhada Gole", "Ms. Gauthami"],
+        "English": ["Prasita Mukherjee", "Rashmi L. George", "Amrita Shenoy", "Stuti Kute"],
+        "Commerce (under Arts)": ["Suvaiba S. Pirani"],
+        "Psychology": ["Linda Dhakul", "Ruby Pavri", "Karen Fernandes Almeida", "Shreya Makhija", "Shannon Fernandes", "Isaac D'cruz", "Ruchi Brahmachari"],
+        "Sociology and Anthropology": ["Ankita Gujar", "Pranoti Chirmuley", "Radhika Rani"],
+        "History": ["Dr Avkash Jadhav", "Prof Arun Singh", "Prof Deepika Naik"],
+        "AIHCA": ["Anita Rane-Kothare", "Radha Kumar", "Jason Johns"],
+        "Hindi": ["Dr. Preethi Bani"],
+        "French": ["Alpana Palkhiwale"],
+        "Public Policy": ["Agnelo Menezes", "Agrima Bhasin"],
+        "Mass Media": ["Fr. John", "Belinda Jones", "Rahul Kamat", "Akshara Jadhav", "Sancia D'Souza", "Khushali Dodia", "Dushyanti Ahire"]
+      },
+      SCIENCE: {
+        "Botany": ["Dr. Rajdeo Singh", "Dr. Vijaya Lobo", "Mr. Saif Khan", "Ms. Manoshree Mondol", "Dr. Alok Gude", "Ms. Sumita Kalekar"],
+        "Zoology": ["Dr. Sujata Deshpande", "Mr. Conrad Cabral", "Mr. Kartik Adake", "Dr. Harshad Parekar", "Ms. Aarti Damle"],
+        "Life Science": ["Dr. Prashant Ratnaparkhi", "Dr. Priya Sundarrajan", "Dr. Radhika Tendulkar", "Dr. Sangeetha Shetty", "Dr. Maya Murdeshwar", "Dr. Binoj Kutty", "Dr. Bhaskar Saha", "Dr. Manasi Kanuga", "Dr. Sangeeta Shankar", "Dr. Jessy John", "Mr. Sachin Rajagopalan"],
+        "Microbiology": ["Prof. Aparna Shetye", "Prof. Pampi Chakraborty", "Prof. Karuna Gokarn", "Prof. Pradnya Gogte", "Prof. Kaushik Karpe", "Prof. Bhushan Kulkarni", "Ms. Birva Bhavsar", "Ms. Rajeshwari Kundar", "Ms. Disha Padki", "Ms. Anushree Suresh"],
+        "Geology": ["Mr Hrishikesh P. Samant", "Mr Bobby P. Mathew", "Mr Ashwin Pundalik", "Mr John D'Souza", "Ms Shweta Patil", "Mr Robinprince Edward"],
+        "Mathematics": ["Ashok Bingi", "Meenal Kolkar", "Simi Cyriac", "Aditya Garg"],
+        "Statistics": ["Dr. Annapurna Sankarnarayanan", "Ms. Piyali Unnikrishnan", "Mr. Mayur More", "Mr. Omkar Thakur", "Ms. Sumaiya Shaikh", "Ms. Sneha Bose", "Ms. Rupali Kharat"],
+        "Physics": ["Prof. Ajay Yadav", "Prof. Rajesh Singh", "Prof. Rohan Jadhav", "Ms. Leena Joshi", "Ms. Amruta Sadhu", "Mr. Radhekrishna Dubey", "Dr. Manojendu Choudhary", "Dr. Katherine Rawlins"],
+        "Chemistry": ["Marazban Kotwal", "Ashma Aggarwal", "Abhilasha Jain", "Maria Gomes", "Manik Rathod", "Prahlad Rege", "Neeraj Bahugani", "Saima Akram", "Geeta Kotian"],
+        "BSc IT & DSAI": ["Thomas Roy", "Aaron Johns", "Subhash Kumar", "Lydia Fernandes", "Jojan Mathai", "Darren D'Souza"],
+        "BSc Biotechnology": ["Norine D'Souza", "Shiney Peter", "Punita Jain", "Sayali", "Chandni"]
+      },
+      COMMERCE: {
+        "B.Com": ["Sanjay Parab", "Navneet Sangha", "Lloyd Serrao", "Vinayak Thool", "Jotiram Gaikwad", "Kamaji Bokare", "Rahul Jaiswal"],
+        "BAF": ["Sandeep Sahastrabuddhe", "Pratik Purohit", "Kamalika Ray", "Fr. Ambrose"],
+        "BMS": ["Pritesh Arte", "Soni George Tharakan", "Neelam Shetty", "Twinkle Murzello", "Sonia", "Kishu Doswani"]
+      }
+    };
+
+    const contentArea = document.getElementById("contentArea");
+
+    function setActiveButton(id) {
+      document.querySelectorAll('.sidebar-btn').forEach(btn => btn.classList.remove('active'));
+      const btn = document.getElementById(id);
+      if (btn) btn.classList.add('active');
+    }
+
+    function getHeaderHTML() {
+      return `
+        <div class="inner-header">
+          <div class="logo-group">
+            <img src="https://i.ibb.co/35NZMyqb/logo.png" alt="St. Xavier's Logo" onerror="this.style.display='none'">
+            <h2>St. Xavier's College, Mumbai</h2>
+          </div>
+          <span style="font-size:12px; color:#666; font-weight:600;">Autonomous Institute</span>
+        </div>
+      `;
+    }
+
+    function showHome() {
+      setActiveButton('btnHome');
+      contentArea.innerHTML = `
+        <div style="position:relative; height:100%; min-height:550px; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; overflow:hidden;">
+          <img src="https://i.ibb.co/pr1VD9MT/campus-photo-jpg.jpg" style="position:absolute; top:0; left:0; width:100%; height:100%; object-fit:cover; opacity:0.3; filter:grayscale(20%); z-index:0;" alt="Campus Photo">
+          
+          <div style="position:relative; z-index:1; padding:30px; background:rgba(255,255,255,0.92); border-radius:12px; border-top:5px solid var(--primary-red); box-shadow:0 8px 24px rgba(0,0,0,0.15); max-width:600px;">
+            <img src="https://i.ibb.co/35NZMyqb/logo.png" alt="College Logo" style="width:90px; margin-bottom:16px;" onerror="this.style.display='none'">
+            <h1 style="font-family:'Georgia', serif; font-size:28px; margin:0 0 12px; color:var(--primary-red);">Welcome to St. Xavier's College, Mumbai!</h1>
+            <p style="font-size:15px; color:#222; margin:0; font-weight:500;">Everything you need to explore campus, all in one place.</p>
+          </div>
+
+          <div style="position:absolute; bottom:16px; left:0; width:100%; text-align:center; z-index:1; font-family:'Centaur', serif; font-size:15px; font-weight:600; color:#444; letter-spacing:0.5px; text-shadow:0 1px 2px rgba(255,255,255,0.8);">
+            Made by Tejas , Nadisha & Aardra (DSAI Batch 2025-28)
+          </div>
+        </div>
+      `;
+    }
+
+    function showLostButton() {
+      setActiveButton('btnLostButton');
+      contentArea.innerHTML = getHeaderHTML() + `
+        <div class="page-container">
+          <div class="nav-wrap">
+            <h1 class="page-title">Lost? Find your route</h1>
+            <p class="nav-subtitle">Step-by-step directions anywhere on campus, across both buildings.</p>
+            <div class="nav-card">
+              <label>I am currently at...</label>
+              <div class="search-select-box" id="boxFrom">
+                <input type="text" id="fromInput" placeholder="-- Choose Starting Point --" autocomplete="off" readonly>
+                <div class="search-select-dropdown" id="fromDropdown"></div>
+              </div>
+
+              <div class="swap-row" style="text-align:center; margin:10px 0;">
+                <button type="button" class="swap-btn" onclick="swapLocations()" style="background:none; border:none; color:var(--primary-red); font-weight:700; cursor:pointer;">&#8645; Swap Locations</button>
+              </div>
+
+              <label>I want to reach...</label>
+              <div class="search-select-box" id="boxTo">
+                <input type="text" id="toInput" placeholder="-- Choose Destination --" autocomplete="off" readonly>
+                <div class="search-select-dropdown" id="toDropdown"></div>
+              </div>
+
+              <button type="button" class="primary" onclick="findRoute()">Find my way</button>
+              <div id="status"></div>
+            </div>
+            <div class="nav-card result-card" id="resultCard" style="display:none;">
+              <div class="result-header" id="resultHeader" style="font-weight:700; color:var(--primary-red); margin-bottom:10px;"></div>
+              <div id="steps"></div>
+              <div id="destinationPreview" style="margin-top:16px; padding-top:14px; border-top:2px dashed #ddd; display:none;"></div>
+            </div>
+          </div>
+        </div>
+      `;
+      setupSearchableSelect("fromInput", "fromDropdown");
+      setupSearchableSelect("toInput", "toDropdown");
+    }
+
+    function setupSearchableSelect(inputId, dropdownId) {
+      const input = document.getElementById(inputId);
+      const dropdown = document.getElementById(dropdownId);
+      if (!input || !dropdown) return;
+
+      const sortedNodes = [...NODES].sort((a, b) => a.name.localeCompare(b.name));
+
+      function renderItems(filterText = "") {
+        const q = filterText.trim().toLowerCase();
+        const matches = sortedNodes.filter(n => {
+          const label = `${n.name} (${floorLabel(n.floor)})`.toLowerCase();
+          return label.includes(q);
+        });
+
+        if (matches.length === 0) {
+          dropdown.innerHTML = `<div style="padding:10px 12px; font-size:13px; color:#888;">No matching locations found</div>`;
+          return;
+        }
+
+        dropdown.innerHTML = matches.map(n => `
+          <div class="search-select-item" data-id="${n.id}" data-label="${n.name} (${floorLabel(n.floor)})">
+            ${n.name} <span style="font-size:11.5px; color:#666;">(${floorLabel(n.floor)})</span>
+          </div>
+        `).join('');
+
+        dropdown.querySelectorAll('.search-select-item').forEach(item => {
+          item.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            input.value = item.getAttribute('data-label');
+            input.setAttribute('data-id', item.getAttribute('data-id'));
+            input.readOnly = true;
+            dropdown.style.display = 'none';
+          });
+        });
+      }
+
+      renderItems();
+
+      input.addEventListener('click', () => {
+        input.readOnly = false;
+        document.querySelectorAll('.search-select-dropdown').forEach(d => {
+          if (d !== dropdown) d.style.display = 'none';
+        });
+        dropdown.style.display = 'block';
+        renderItems(input.value);
+        input.select();
+      });
+
+      input.addEventListener('input', () => {
+        dropdown.style.display = 'block';
+        renderItems(input.value);
+      });
+
+      input.addEventListener('blur', () => {
+        setTimeout(() => {
+          dropdown.style.display = 'none';
+          input.readOnly = true;
+          const currentId = input.getAttribute('data-id');
+          if (currentId && nodeMap[currentId]) {
+            input.value = `${nodeMap[currentId].name} (${floorLabel(nodeMap[currentId].floor)})`;
+          } else {
+            const found = sortedNodes.find(n => `${n.name} (${floorLabel(n.floor)})`.toLowerCase() === input.value.trim().toLowerCase());
+            if (found) {
+              input.setAttribute('data-id', found.id);
+              input.value = `${found.name} (${floorLabel(found.floor)})`;
+            }
+          }
+        }, 180);
+      });
+    }
+
+    function swapLocations() {
+      const fromInput = document.getElementById("fromInput");
+      const toInput = document.getElementById("toInput");
+      if (fromInput && toInput) {
+        const tempVal = fromInput.value;
+        const tempId = fromInput.getAttribute('data-id');
+
+        fromInput.value = toInput.value;
+        fromInput.setAttribute('data-id', toInput.getAttribute('data-id') || '');
+
+        toInput.value = tempVal;
+        toInput.setAttribute('data-id', tempId || '');
+      }
+    }
+
+    function findRoute() {
+      const startId = document.getElementById("fromInput").getAttribute("data-id");
+      const endId = document.getElementById("toInput").getAttribute("data-id");
+      const statusDiv = document.getElementById("status");
+      const resultCard = document.getElementById("resultCard");
+      const resultHeader = document.getElementById("resultHeader");
+      const stepsDiv = document.getElementById("steps");
+      const destPreviewDiv = document.getElementById("destinationPreview");
+      
+      if (!startId || !endId) {
+        statusDiv.innerHTML = '<p style="color:red; font-size:13px; margin-top:8px;">Please select both a starting point and a destination from the list.</p>';
+        if (resultCard) resultCard.style.display = 'none';
+        return;
+      }
+      
+      if (startId === endId) {
+        statusDiv.innerHTML = '<p style="color:var(--primary-red); font-size:13px; margin-top:8px;">You are already at your destination!</p>';
+        if (resultCard) resultCard.style.display = 'none';
+        return;
+      }
+      
+      statusDiv.innerHTML = '';
+      const result = dijkstra(startId, endId);
+      
+      if (!result) {
+        statusDiv.innerHTML = '<p style="color:red; font-size:13px; margin-top:8px;">No path found between these locations.</p>';
+        if (resultCard) resultCard.style.display = 'none';
+        return;
+      }
+      
+      const steps = buildSteps(result.path);
+      if (resultHeader) resultHeader.textContent = `Route from ${nodeMap[startId].name} to ${nodeMap[endId].name}`;
+      
+      if (stepsDiv) {
+        stepsDiv.innerHTML = steps.map((s, idx) => `
+          <div class="step" style="display:flex; align-items:flex-start; gap:12px; margin-bottom:12px; padding-bottom:10px; border-bottom:1px solid #eee;">
+            <div class="step-num ${s.type === 'staircase' ? 'stair' : ''}" style="width:24px; height:24px; border-radius:50%; background:var(--primary-red); color:white; display:flex; align-items:center; justify-content:center; font-size:12px; font-weight:bold; flex-shrink:0; margin-top:2px;">${idx + 1}</div>
+            <div style="flex:1;">
+              <div style="font-size:13px; color:#333; line-height:1.4; font-weight: ${s.type === 'staircase' ? '600' : 'normal'};">${s.text}</div>
+              ${s.imageUrl ? `
+                <div style="margin-top:8px;">
+                  <img src="${s.imageUrl}" alt="Staircase preview" style="width:100%; max-width:280px; height:150px; object-fit:cover; border-radius:6px; border:1px solid #ddd; box-shadow:0 2px 6px rgba(0,0,0,0.1); cursor:pointer;" onclick="openLightbox('${s.imageUrl}')">
+                  <div style="font-size:12px; font-weight:600; color:var(--primary-red); margin-top:4px;">${s.staircaseName || 'Staircase'}</div>
+                  <div style="font-size:11px; color:#666; margin-top:1px;">(Click photo to enlarge)</div>
+                </div>
+              ` : ''}
+            </div>
+          </div>
+        `).join('');
+      }
+
+      /* Destination photo preview (only for Bonnet Lab, MMR, SCAVI) */
+      if (destPreviewDiv) {
+        if (DESTINATION_IMAGES[endId]) {
+          const destImg = DESTINATION_IMAGES[endId];
+          const destName = nodeMap[endId].name;
+          destPreviewDiv.innerHTML = `
+            <div style="font-size:13px; font-weight:700; color:var(--primary-red); margin-bottom:8px;">Destination Preview: ${destName}</div>
+            <img src="${destImg}" alt="${destName}" style="width:100%; max-width:320px; height:180px; object-fit:cover; border-radius:6px; border:1px solid #ddd; box-shadow:0 2px 6px rgba(0,0,0,0.12); cursor:pointer;" onclick="openLightbox('${destImg}')">
+            <div style="font-size:11px; color:#666; margin-top:3px;">(Click photo to enlarge)</div>
+          `;
+          destPreviewDiv.style.display = 'block';
+        } else {
+          destPreviewDiv.style.display = 'none';
+          destPreviewDiv.innerHTML = '';
+        }
+      }
+      
+      if (resultCard) resultCard.style.display = 'block';
+    }
+
+    function showDepartments() {
+      setActiveButton('btnDepartments');
+      contentArea.innerHTML = getHeaderHTML() + `
+        <div class="page-container">
+          <div class="nav-wrap">
+            <h1 class="page-title">Academic Departments</h1>
+            <p class="nav-subtitle">Select a faculty stream and department to view the teaching staff.</p>
+            <div class="nav-card">
+              <label for="streamSelect">Select Stream</label>
+              <select id="streamSelect" onchange="onStreamChange()">
+                <option value="">-- Choose Stream --</option>
+                <option value="ARTS">Arts</option>
+                <option value="SCIENCE">Science</option>
+                <option value="COMMERCE">Commerce</option>
+              </select>
+              
+              <label for="deptSelect">Select Department</label>
+              <select id="deptSelect" onchange="onDeptChange()" disabled>
+                <option value="">-- Choose Department --</option>
+              </select>
+            </div>
+            <div id="facultyDisplay"></div>
+          </div>
+        </div>
+      `;
+    }
+
+    function onStreamChange() {
+      const stream = document.getElementById("streamSelect").value;
+      const deptSelect = document.getElementById("deptSelect");
+      const facultyDisplay = document.getElementById("facultyDisplay");
+      
+      deptSelect.innerHTML = '<option value="">-- Choose Department --</option>';
+      facultyDisplay.innerHTML = '';
+      
+      if (!stream) {
+        deptSelect.disabled = true;
+        return;
+      }
+      
+      deptSelect.disabled = false;
+      Object.keys(FACULTY_DATA[stream]).forEach(dept => {
+        const opt = document.createElement("option");
+        opt.value = dept;
+        opt.textContent = dept;
+        deptSelect.appendChild(opt);
+      });
+    }
+
+    function onDeptChange() {
+      const stream = document.getElementById("streamSelect").value;
+      const dept = document.getElementById("deptSelect").value;
+      const facultyDisplay = document.getElementById("facultyDisplay");
+      
+      if (!stream || !dept) {
+        facultyDisplay.innerHTML = '';
+        return;
+      }
+      
+      const facultyList = FACULTY_DATA[stream][dept];
+      let cardsHTML = facultyList.map(name => `<div class="faculty-card">${name}</div>`).join('');
+      
+      facultyDisplay.innerHTML = `
+        <div class="nav-card">
+          <h3 style="margin:0 0 12px; color:var(--primary-red); font-family:'Georgia', serif;">${dept} Faculty</h3>
+          <div class="faculty-grid">${cardsHTML}</div>
+        </div>
+      `;
+    }
+
+    function showGallery() {
+      setActiveButton('btnGallery');
+      contentArea.innerHTML = getHeaderHTML() + `
+        <div class="page-container">
+          <div class="nav-wrap">
+            <h1 class="page-title">Campus Gallery</h1>
+            <p class="nav-subtitle">Click on any photo to expand and view in high resolution.</p>
+            <div class="gallery-grid">
+              <!-- 1. Hall -->
+              <div style="text-align:center;">
+                <img src="https://i.ibb.co/KjD45scv/gallery1-jpg.webp" class="gallery-img" onclick="openLightbox(this.src)" alt="College Hall">
+                <div style="font-size:13px; font-weight:600; color:var(--text-black); margin-top:6px;">College Hall</div>
+              </div>
+              
+              <!-- 2. Entrance -->
+              <div style="text-align:center;">
+                <img src="https://i.ibb.co/21yPnPsk/gallery2-jpg.jpg" class="gallery-img" onclick="openLightbox(this.src)" alt="Entrance">
+                <div style="font-size:13px; font-weight:600; color:var(--text-black); margin-top:6px;">Entrance</div>
+              </div>
+              
+              <!-- 3. Hostel Building -->
+              <div style="text-align:center;">
+                <img src="https://i.ibb.co/q3NpHjPH/gallery3-jpg.jpg" class="gallery-img" onclick="openLightbox(this.src)" alt="Hostel Building">
+                <div style="font-size:13px; font-weight:600; color:var(--text-black); margin-top:6px;">Hostel Building</div>
+              </div>
+              
+              <!-- 4. Library -->
+              <div style="text-align:center;">
+                <img src="https://i.ibb.co/23hqHcG2/gallery4-jpg.jpg" class="gallery-img" onclick="openLightbox(this.src)" alt="Library">
+                <div style="font-size:13px; font-weight:600; color:var(--text-black); margin-top:6px;">Library</div>
+              </div>
+              
+              <!-- 5. Mini Woods -->
+              <div style="text-align:center;">
+                <img src="https://i.ibb.co/Qvht9jHS/gallery5-jpg.jpg" class="gallery-img" onclick="openLightbox(this.src)" alt="Mini Woods">
+                <div style="font-size:13px; font-weight:600; color:var(--text-black); margin-top:6px;">Mini Woods</div>
+              </div>
+              
+              <!-- 6. Foyer -->
+              <div style="text-align:center;">
+                <img src="https://i.ibb.co/KjyrpBs8/gallery6-jpg.webp" class="gallery-img" onclick="openLightbox(this.src)" alt="Foyer">
+                <div style="font-size:13px; font-weight:600; color:var(--text-black); margin-top:6px;">Foyer</div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function openLightbox(src) {
+      document.getElementById("lightboxImg").src = src;
+      document.getElementById("lightboxOverlay").style.display = "flex";
+    }
+
+    function closeLightbox() {
+      document.getElementById("lightboxOverlay").style.display = "none";
+    }
+
+    function showAbout() {
+      setActiveButton('btnAbout');
+      contentArea.innerHTML = getHeaderHTML() + `
+        <div class="page-container">
+          <div class="nav-wrap">
+            <h1 class="page-title">About College</h1>
+            <div style="display:flex; gap:12px; margin:16px 0;">
+              <div style="flex:1; background:#fff; border-radius:8px; padding:14px; text-align:center; border-top:3px solid var(--primary-red); box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                <div style="font-size:22px; font-weight:700; color:var(--primary-red);">1869</div>
+                <div style="font-size:12px; color:#555;">Founded</div>
+              </div>
+              <div style="flex:1; background:#fff; border-radius:8px; padding:14px; text-align:center; border-top:3px solid var(--primary-red); box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                <div style="font-size:22px; font-weight:700; color:var(--primary-red);">A+</div>
+                <div style="font-size:12px; color:#555;">NAAC Grade</div>
+              </div>
+              <div style="flex:1; background:#fff; border-radius:8px; padding:14px; text-align:center; border-top:3px solid var(--primary-red); box-shadow:0 2px 8px rgba(0,0,0,0.06);">
+                <div style="font-size:22px; font-weight:700; color:var(--primary-red);">2010</div>
+                <div style="font-size:12px; color:#555;">Autonomous Since</div>
+              </div>
+            </div>
+            <div style="display:flex; gap:20px; align-items:flex-start; margin-top:16px;">
+              <div class="nav-card" style="flex:1.2; margin-bottom:0;">
+                <p style="margin-top:0; line-height:1.6;">St. Xavier's College, Mumbai was founded on January 2, 1869, making it one of the oldest and most prestigious colleges in India. Run by the Society of Jesus (Jesuits), the college is named after St. Francis Xavier. Its motto, <em>"Provocans Ad Volandum"</em>, translates to <em>"Encouraging to Fly"</em>.</p>
+                <p style="line-height:1.6; margin-top:10px;">The iconic campus features Indo-Gothic architecture and is recognized as a heritage monument. St. Xavier's was the first college under Mumbai University to gain Autonomous status in 2010 and holds an 'A+' grade accreditation by NAAC.</p>
+                <p style="margin-bottom:0; line-height:1.6; margin-top:10px;">It offers degrees in Arts, Science, Commerce, IT, Mass Media, and Management, and hosts <strong>Malhar</strong>, one of Asia's largest student-run youth festivals.</p>
+              </div>
+              <div style="flex:0.8;">
+                <div class="nav-card" style="padding:10px; text-align:center; margin-bottom:0;">
+                  <img src="https://i.ibb.co/0ypFPK8n/about-side-jpg.jpg" alt="Reception / Heritage Building" style="width:100%; border-radius:6px; object-fit:cover;">
+                  <div style="font-size:12px; color:#666; margin-top:8px; font-weight:600;">Reception Desk Area</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    function showContact() {
+      setActiveButton('btnContact');
+      contentArea.innerHTML = getHeaderHTML() + `
+        <div class="page-container">
+          <div class="nav-wrap">
+            <h1 class="page-title">Contact Us</h1>
+            <p class="nav-subtitle">Get in touch with administrative offices and official desks.</p>
+            <div class="nav-card">
+              <div style="display:grid; gap:16px;">
+                <div style="padding-bottom:12px; border-bottom:1px solid #eee;">
+                  <strong style="color:var(--primary-red); font-size:14px;">Reception Desk</strong>
+                  <div style="margin-top:4px; font-size:14px; color:#333;">+91 22-22620661</div>
+                </div>
+                <div style="padding-bottom:12px; border-bottom:1px solid #eee;">
+                  <strong style="color:var(--primary-red); font-size:14px;">Principal's Visiting Hours</strong>
+                  <div style="margin-top:4px; font-size:14px; color:#333;">Monday to Friday: 10:30 AM – 12:30 PM (or by prior appointment)</div>
+                </div>
+                <div style="padding-bottom:12px; border-bottom:1px solid #eee;">
+                  <strong style="color:var(--primary-red); font-size:14px;">General Office Timings</strong>
+                  <div style="margin-top:4px; font-size:14px; color:#333;">10:00 AM – 12:45 PM | 2:00 PM – 3:00 PM</div>
+                </div>
+                <div style="padding-bottom:12px; border-bottom:1px solid #eee;">
+                  <strong style="color:var(--primary-red); font-size:14px;">Email Support</strong>
+                  <div style="margin-top:4px; font-size:14px; color:#333;">webadmin@xaviers.edu / helpdesk@xaviers.edu</div>
+                </div>
+                <div>
+                  <strong style="color:var(--primary-red); font-size:14px;">Campus Address</strong>
+                  <div style="margin-top:4px; font-size:14px; color:#333; line-height:1.5;">St. Xavier's College (Empowered Autonomous Institute)<br>5 Mahapalika Marg, Mumbai – 400001, Maharashtra, India</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    document.addEventListener("DOMContentLoaded", () => {
+      showHome();
+    });
+  </script>
+</body>
+</html>
